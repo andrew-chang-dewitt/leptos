@@ -5,7 +5,9 @@ async fn main() -> std::io::Result<()> {
     use actix_web::*;
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
-    use leptos_start::app::*;
+    use leptos_start::app::{
+        App, AppProps, OneSecondFn, ResultFn, TwoSecondFn,
+    };
 
     let conf = get_configuration(None).await.unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -14,6 +16,7 @@ async fn main() -> std::io::Result<()> {
 
     OneSecondFn::register().unwrap();
     TwoSecondFn::register().unwrap();
+    ResultFn::register().unwrap();
 
     HttpServer::new(move || {
         let leptos_options = &conf.leptos_options;

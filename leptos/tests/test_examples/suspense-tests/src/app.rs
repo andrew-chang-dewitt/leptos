@@ -56,6 +56,8 @@ pub fn App(cx: Scope) -> impl IntoView {
                         <Route path="single" view=|cx| view! { cx, <Single/> }/>
                         <Route path="parallel" view=|cx| view! { cx, <Parallel/> }/>
                         <Route path="inside-component" view=|cx| view! { cx, <InsideComponent/> }/>
+                        <Route path="action-suspense" view=|cx| view! { cx, <ActionParent><p>"This is a simple child w/out Suspense."</p></ActionParent> }/>
+                        <Route path="action-nested-suspense" view=|cx| view! { cx, <ActionParent><InsideComponentChild/></ActionParent> }/>
                     </Route>
                     // in-order
                     <Route
@@ -216,4 +218,49 @@ fn InsideComponentChild(cx: Scope) -> impl IntoView {
             }}
         </Suspense>
     }
+}
+
+#[component]
+fn ActionParent(cx: Scope, children: ChildrenFn) -> impl IntoView {
+    let action = create_server_action::<ResultFn>(cx);
+    let resource = create_resource(
+        cx,
+        move || action.version().get(),
+        move |_| result_fn(cx),
+    );
+    let result = move || {
+        resource.read(cx).map(|r| {
+            log::debug!("result in ActionSuspense: {r:#?}");
+
+            match r {
+                Ok(true) => view! {
+                    cx,
+                    <p>"Result is true, rendering children:"</p>
+                    {children(cx)}
+                }
+                .into_view(cx),
+                _ => view! {
+                    cx,
+                    <p>"Result is false/err, not rendering children"</p>
+                }
+                .into_view(cx),
+            }
+        })
+    };
+
+    view! {
+        cx,
+        <h1>"Action Suspense"</h1>
+        <Suspense fallback=move || view!{cx, <p>"Loading Action Result"</p>}>
+            {result()}
+        </Suspense>
+    }
+}
+
+#[server(ResultFn, "/api")]
+async fn result_fn(_: Scope) -> Result<bool, ServerFnError> {
+    log::debug!("getting from server fn");
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    Ok(true)
 }
